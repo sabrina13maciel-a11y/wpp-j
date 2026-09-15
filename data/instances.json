@@ -1,11 +1,26 @@
 [
   {
+    "id": "inst_1789413103498",
+    "name": "Meta Oficial - Estefani Santos",
+    "tipo": "meta",
+    "url_servidor": "",
+    "phoneNumber": "+1 555-473-2635",
+    "phoneNumberId": "1349652784893374",
+    "wabaId": "1443450287731514",
+    "accessToken": "EAATZBQJr8zIYBSQ2A2fleWDGDzbjIi3FO6w63czNdsZCVs7J5qkjxMZA9ZCOpZB7POZCyQnLSDEUMelzcvQ0S5lZA4ZAYlVZAJRZAJPxnezziBgZCDo9wlACcv3wTgbvz2KpKDK9ki0jEhe3GbrWcAdOn4PfqKtZCOzBkQrLBZAs1NCY9ja346x5mpDb1SF5a42hD4yhZC4HeZBZAG9cpQyN",
+    "assignedFlowId": "fluxo-espiao-foto",
+    "status": "connected",
+    "totalSent": 0,
+    "totalReceived": 0,
+    "createdAt": "2026-09-14T19:11:43.498Z"
+  },
+  {
     "id": "uaz_re9e832d34a43e1",
     "name": "01",
     "tipo": "uazapi",
     "url_servidor": "https://whatsblin.uazapi.com",
     "instance_id": "re9e832d34a43e1",
-    "instance_token": "c42d3e8b85f6f03f30048cea:b6daa2916bd3b2d36c1399b1ad83714a:21628a1ca4629884113e6b86c1ee328613c122d15ffd4df99ce7fa24d7ca03790f534f26",
+    "instance_token": "237ff58f1d9d8187e3ae73f4:82d01ec45a9412fc0e0e1b0d739b808c:a0ad1430d5435ae415ed270f01bc1f1fe4acd4c29e5863bf6cbd54c5851c1066f5709431",
     "phoneNumber": "557193768941",
     "numero_conectado": "557193768941",
     "status": "connected",
@@ -14,6 +29,6 @@
     "totalReceived": 0,
     "criado_em": "2026-09-14 16:24:54.865Z",
     "createdAt": "2026-09-14 16:24:54.865Z",
-    "lastSyncedAt": "2026-09-14T17:02:44.977Z"
+    "lastSyncedAt": "2026-09-15T00:58:00.753Z"
   }
 ]

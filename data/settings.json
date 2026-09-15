@@ -12,7 +12,13 @@
   "facebook": {
     "appId": "1388636936143540",
     "appSecret": "685e2fbf3c2abc844e99ba24b039c511",
-    "configId": "2204676673432561"
+    "configId": "2204676673432561",
+    "connected": true,
+    "accessToken": "EAATZBQJr8zIYBSQ2A2fleWDGDzbjIi3FO6w63czNdsZCVs7J5qkjxMZA9ZCOpZB7POZCyQnLSDEUMelzcvQ0S5lZA4ZAYlVZAJRZAJPxnezziBgZCDo9wlACcv3wTgbvz2KpKDK9ki0jEhe3GbrWcAdOn4PfqKtZCOzBkQrLBZAs1NCY9ja346x5mpDb1SF5a42hD4yhZC4HeZBZAG9cpQyN",
+    "phoneNumberId": "1349652784893374",
+    "wabaId": "1443450287731514",
+    "displayPhoneNumber": "+1 555-473-2635",
+    "businessName": "Estefani Santos Ostroski LTDA"
   },
   "uazapiServerUrl": "https://whatsblin.uazapi.com",
   "uazapiAdminToken": "Wx0bdo99r3VtcDwC8ulQezVLNDY7rcFOzSWgyS7Q9vjWwKKMJp",

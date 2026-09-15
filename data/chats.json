@@ -1012,6 +1012,24 @@
         "mediaUrl": null,
         "mediaType": "ExtendedTextMessage",
         "instanceId": "uaz_r0e685ac3ec022c"
+      },
+      {
+        "id": "557193768941:3EB0E6438487E00BBEC5E4",
+        "timestamp": "2026-09-14T05:08:38.195Z",
+        "from": "agent",
+        "text": "Claro! Você pode tentar outro número, sim. 😊 É só me enviar o novo número que eu faço a busca inicial para você.",
+        "mediaUrl": null,
+        "mediaType": "ExtendedTextMessage",
+        "instanceId": "uaz_re9e832d34a43e1"
+      },
+      {
+        "id": "557193768941:3EB0592D43618BEF812758",
+        "timestamp": "2026-09-14T05:08:42.086Z",
+        "from": "agent",
+        "text": "Perfeito! Vou iniciar a busca para o número 5596981266512 e já te trago a prévia. Aguarde um momento enquanto verificamos no sistema... 🔍",
+        "mediaUrl": null,
+        "mediaType": "ExtendedTextMessage",
+        "instanceId": "uaz_re9e832d34a43e1"
       }
     ],
     "lastProcessedTimestamp": 1789362535346
