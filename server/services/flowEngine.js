@@ -445,6 +445,15 @@ async function executeFlowGraph(instance, cleanPhone, messageText, mediaAttachme
   chatData.variables.checkoutUrl200 = funnel.upsellStages?.stage_200?.checkoutUrl || 'https://pay.kirvano.com/checkout-200';
   chatData.variables.checkoutUrl400 = funnel.upsellStages?.stage_400?.checkoutUrl || 'https://pay.kirvano.com/checkout-400';
 
+  // 0. Verifica se o lead pediu para reiniciar/recomeçar (ex: "recomeçar", "começar do zero", "quero de novo", "reiniciar", "resetar")
+  const isRestartIntent = /(?:recome[çc]ar|come[çc]ar do zero|iniciar do zero|de novo|reiniciar|resetar)/i.test(messageText);
+  if (isRestartIntent) {
+    console.log(`[FlowEngine] 🔄 Lead solicitou REINÍCIO do funil: ${cleanPhone}`);
+    chatData.state = 'NOVO';
+    chatData.upsellStage = 'stage_49';
+    chatData.variables = { phone: cleanPhone };
+  }
+
   const rawDigits = (messageText || '').replace(/\D/g, '');
   const stageInfo = getCurrentStageInfo(chatData.upsellStage, funnel, flowLanguage);
   
@@ -811,7 +820,7 @@ async function executeFlowGraph(instance, cleanPhone, messageText, mediaAttachme
   }
 
   // =========================================================================
-  // CASO 3: PRIMEIRO CONTATO DO LEAD (BOAS-VINDAS)
+  // CASO 3: PRIMEIRO CONTATO DO LEAD (BOAS-VINDAS OU QUEBRA DE OBJEÇÃO INICIAL)
   // =========================================================================
   const fallbackWelcome = flowLanguage === 'es'
     ? "¡Hola! Guarda mi contacto y envíame el número de la persona que ya te mando la prueba."
@@ -820,12 +829,95 @@ async function executeFlowGraph(instance, cleanPhone, messageText, mediaAttachme
       : "Olá, Salve o meu contato e envie o número da pessoa que já vou mandar a prova");
 
   const welcomeText = getNodeText('node-welcome', fallbackWelcome);
+
+  const initialDecision = await aiService.handleInitialContact(messageText, flowLanguage, welcomeText);
+
+  // Se o lead mandou o número de cara na primeira mensagem
+  if (initialDecision.type === 'PHONE' && initialDecision.targetPhone) {
+    chatData.state = 'AGUARDANDO_NUMERO';
+    chats[cleanPhone] = chatData;
+    db.saveChats(chats);
+
+    const targetPhone = initialDecision.targetPhone.length <= 11 && flowLanguage === 'pt' ? '55' + initialDecision.targetPhone : initialDecision.targetPhone;
+    chatData.variables.alvo = targetPhone;
+    console.log(`[FlowEngine] ✓ Número alvo recebido no primeiro contato: ${targetPhone}`);
+
+    const fallbackAnalyzing = flowLanguage === 'es'
+      ? "Espera un momento mientras verificamos en el sistema..."
+      : (flowLanguage === 'en'
+        ? "Please wait a moment while we check the system..."
+        : "Aguarde um momento enquanto verificamos no sistema");
+
+    const analyzingMsg = getNodeText('node-analyzing-msg', fallbackAnalyzing);
+    db.addChatMessage(cleanPhone, { from: 'bot', text: analyzingMsg, instanceId: inst.id }, 'ANALISANDO');
+    await sendOutgoingTextMessage(inst, cleanPhone, analyzingMsg);
+    eventBus.emit('chat_updated', { phone: cleanPhone });
+
+    const delaySec = funnel.analyzingDelaySeconds || 3;
+    await new Promise(r => setTimeout(r, delaySec * 1000));
+
+    const photoUrl = await lookupProfilePicture(targetPhone);
+    chatData.variables.photoUrl = photoUrl;
+
+    const imgBuffer = await composeProofImage(photoUrl, funnel.avatarCoordinates);
+    const proofsDir = path.join(__dirname, '../../public/generated');
+    fs.mkdirSync(proofsDir, { recursive: true });
+    const filename = `proof_${cleanPhone}_${Date.now()}.png`;
+    fs.writeFileSync(path.join(proofsDir, filename), imgBuffer);
+    const webProofUrl = `/generated/${filename}`;
+
+    const proofCaption = photoUrl
+      ? (flowLanguage === 'es' ? '✓ Prueba con foto en el audio' : (flowLanguage === 'en' ? '✓ Proof with profile photo on audio' : '✓ Prova com foto no áudio'))
+      : (flowLanguage === 'es' ? '🔒 Prueba con audio protegido por encriptación' : (flowLanguage === 'en' ? '🔒 Proof with encrypted audio' : '🔒 Prova com áudio protegido por criptografia'));
+
+    db.addChatMessage(cleanPhone, {
+      from: 'bot',
+      mediaType: 'image',
+      mediaUrl: webProofUrl,
+      text: proofCaption,
+      instanceId: inst.id
+    });
+
+    await sendOutgoingImageMessage(inst, cleanPhone, imgBuffer, filename, 'image/png', proofCaption);
+    eventBus.emit('chat_updated', { phone: cleanPhone });
+
+    const fallbackOffer = flowLanguage === 'es'
+      ? "Enlace para el pago de $49.90 👇\n{checkoutUrl}\n\nDatos del pago: 🔒 Pago 100% seguro y encriptado."
+      : (flowLanguage === 'en'
+        ? "Payment link for $49.90 👇\n{checkoutUrl}\n\nPayment info: 🔒 100% Secure & Encrypted Checkout"
+        : "Link para pagamento via PIX R$49,90 👇\n{checkoutUrl}\n\nDados do pagamento: 🔒 Nome: KIRVANO PAGAMENTOS LTDA 🏦 Instituição: PICPAY");
+
+    const offerText = getNodeText('node-offer-pix-49', fallbackOffer);
+    const finalOffer = interpolateVariables(offerText, chatData.variables);
+
+    db.addChatMessage(cleanPhone, { from: 'bot', text: finalOffer, instanceId: inst.id });
+    await sendOutgoingTextMessage(inst, cleanPhone, finalOffer);
+    eventBus.emit('chat_updated', { phone: cleanPhone });
+
+    const fallbackProofInstruction = flowLanguage === 'es'
+      ? "¡En cuanto pagues, envíame el comprobante por aquí para desbloquear el acceso completo!"
+      : (flowLanguage === 'en'
+        ? "As soon as you pay, send me the receipt here to unlock full access!"
+        : "Assim que pagar, me envia o comprovante por aqui para liberar o acesso completo.");
+
+    const proofInstruction = getNodeText('node-msg-comprovante', fallbackProofInstruction);
+    db.addChatMessage(cleanPhone, { from: 'bot', text: proofInstruction, instanceId: inst.id }, 'OFERTA_ENVIADA');
+    await sendOutgoingTextMessage(inst, cleanPhone, proofInstruction);
+
+    chatData.state = 'OFERTA_ENVIADA';
+    chats[cleanPhone] = chatData;
+    db.saveChats(chats);
+    eventBus.emit('chat_updated', { phone: cleanPhone });
+    return;
+  }
+
+  // Lead enviou mensagem padrão de anúncio OU dúvida/objeção inicial que foi tratada pela IA:
   chatData.state = 'AGUARDANDO_NUMERO';
   chats[cleanPhone] = chatData;
   db.saveChats(chats);
 
-  db.addChatMessage(cleanPhone, { from: 'bot', text: welcomeText, instanceId: inst.id }, 'AGUARDANDO_NUMERO');
-  await sendOutgoingTextMessage(inst, cleanPhone, welcomeText);
+  db.addChatMessage(cleanPhone, { from: 'bot', text: initialDecision.reply, instanceId: inst.id }, 'AGUARDANDO_NUMERO');
+  await sendOutgoingTextMessage(inst, cleanPhone, initialDecision.reply);
   eventBus.emit('chat_updated', { phone: cleanPhone });
 }
 

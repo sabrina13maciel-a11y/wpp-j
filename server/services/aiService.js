@@ -13,7 +13,118 @@ function getOpenAiApiKey() {
 }
 
 /**
- * Classifica a resposta do lead logo após a mensagem de Boas-Vindas
+ * Trata o primeiro contato do lead:
+ * 1. Se for o padrão do anúncio ("Olá! Posso ter mais informações sobre isso?") ou saudações comuns:
+ *    Retorna a mensagem de boas-vindas padrão: "Olá, Salve o meu contato e envie o número da pessoa que já vou mandar a prova"
+ * 2. Se for um número de telefone direto:
+ *    Retorna { type: 'PHONE', targetPhone: ... }
+ * 3. Se contiver DÚVIDA ou OBJEÇÃO (ex: "como funciona", "é golpe", "quanto custa", "é seguro", etc.):
+ *    A IA quebra a objeção com segurança e simpatia, e finaliza direcionando para o funil:
+ *    pedindo para salvar o contato e enviar o número da pessoa com DDD para gerar a prova.
+ */
+async function handleInitialContact(userMessage, language = 'pt', defaultWelcomeText = "Olá, Salve o meu contato e envie o número da pessoa que já vou mandar a prova") {
+  const cleanMsg = (userMessage || '').trim();
+  const rawDigits = cleanMsg.replace(/\D/g, '');
+  if (rawDigits.length >= 8 && rawDigits.length <= 15) {
+    return { type: 'PHONE', targetPhone: rawDigits };
+  }
+
+  const lower = cleanMsg.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // Mensagens padrão de anúncio ou saudações simples
+  const isStandardGreeting = (
+    lower === 'ola! posso ter mais informacoes sobre isso?' ||
+    lower === 'ola posso ter mais informacoes sobre isso' ||
+    lower === 'posso ter mais informacoes sobre isso?' ||
+    lower === 'posso ter mais informacoes sobre isso' ||
+    lower === 'posso ter mais informacoes' ||
+    lower === 'quero mais informacoes' ||
+    lower === 'quero saber mais' ||
+    lower === 'informacoes' ||
+    lower === 'ola' || lower === 'olá' || lower === 'oi' || lower === 'oie' ||
+    lower === 'bom dia' || lower === 'boa tarde' || lower === 'boa noite' ||
+    lower === 'opa' || lower === 'salve' || lower === 'alo' || lower === 'alô' ||
+    lower.length <= 4
+  );
+
+  if (isStandardGreeting) {
+    return {
+      type: 'STANDARD',
+      reply: defaultWelcomeText
+    };
+  }
+
+  // Verifica se o lead enviou dúvida ou objeção
+  const isObjectionOrDoubt = (
+    lower.includes('como funciona') || lower.includes('o que e') || lower.includes('quem e') ||
+    lower.includes('seguro') || lower.includes('confiavel') || lower.includes('como assim') ||
+    lower.includes('que prova') || lower.includes('como voce') || lower.includes('quem e voce') ||
+    lower.includes('como acha') || lower.includes('explica') || lower.includes('funciona mesmo') ||
+    lower.includes('da certo') || lower.includes('golpe') || lower.includes('fraude') ||
+    lower.includes('quanto custa') || lower.includes('preco') || lower.includes('preço') ||
+    lower.includes('valor') || lower.includes('paga') || lower.includes('pagar') ||
+    lower.includes('e gratis') || lower.includes('e gratuito') || lower.includes('descobre') ||
+    lower.includes('saber') || lower.includes('fake') || lower.includes('mentira') ||
+    lower.includes('hack') || lower.includes('clonar') || lower.includes('espiao') ||
+    lower.includes('duvida') || lower.includes('ajuda') || lower.includes('como faco') ||
+    lower.includes('?')
+  );
+
+  const settings = db.getSettings();
+  const apiKey = getOpenAiApiKey();
+
+  if (apiKey && isObjectionOrDoubt) {
+    try {
+      const prompt = `Você é a atendente oficial brasileira de suporte e consultoria do sistema de verificação sigilosa de conversas do WhatsApp.
+O cliente acabou de mandar a primeira mensagem no WhatsApp com uma dúvida ou objeção antes de iniciar o funil:
+"${cleanMsg}"
+
+SUAS REGRAS DE RESPOSTA:
+1. Responda à dúvida ou quebre a objeção com simpatia, acolhimento e tom humanizado brasileiro (1 a 2 parágrafos curtos).
+2. Explique que o rastreio é 100% sigiloso (a pessoa investigada NUNCA fica sabendo) e que o teste inicial com a prova/foto serve exatamente para demonstrar na prática que os dados existem.
+3. Se perguntar sobre valores: explique que a busca inicial e a prova são para demonstrar a existência dos dados, e caso ele queira liberar todo o relatório completo e áudios a taxa única é acessível (R$ 49,90).
+4. CONEXÃO DIRETA COM O FUNIL (OBRIGATÓRIO): Termine a mensagem convidando o cliente a iniciar o funil: peça gentilmente para ele salvar o seu contato e enviar o número da pessoa com DDD para você já mandar a prova na hora.
+5. Tom natural de WhatsApp, emojis leves (😊, 🔒, 👍). Nunca diga que é robô ou IA.`;
+
+      const res = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: settings.openaiModel || 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: prompt },
+            { role: 'user', content: cleanMsg }
+          ],
+          max_tokens: 180,
+          temperature: 0.7
+        },
+        { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 6000 }
+      );
+
+      const aiReply = res.data?.choices?.[0]?.message?.content?.trim();
+      if (aiReply) {
+        return { type: 'OBJECTION_BREAK', reply: aiReply };
+      }
+    } catch (e) {
+      console.warn('[handleInitialContact] Erro ao chamar OpenAI, usando fallback:', e.message);
+    }
+  }
+
+  if (isObjectionOrDoubt) {
+    return {
+      type: 'OBJECTION_BREAK',
+      reply: "Nosso sistema faz uma verificação 100% sigilosa nos registros e áudios através do número de telefone, e a pessoa investigada nunca fica sabendo. 😊🔒\n\nA busca inicial é rápida para você ver na prática a prova de que as conversas foram localizadas.\n\nPara começarmos, salva o meu contato aqui e me envie o número da pessoa com DDD que já vou mandar a prova para você!"
+    };
+  }
+
+  // Qualquer outra mensagem genérica que não tenha número nem dúvida explícita:
+  return {
+    type: 'STANDARD',
+    reply: defaultWelcomeText
+  };
+}
+
+/**
+ * Classifica a resposta do lead logo após a mensagem de Boas-Vindas ou enquanto aguarda o número
  */
 async function classifyWelcomeReply(userMessage, language = 'pt') {
   const settings = db.getSettings();
@@ -54,26 +165,14 @@ async function classifyWelcomeReply(userMessage, language = 'pt') {
     lower.includes('e seguro') || lower.includes('e confiavel') || lower.includes('como assim') ||
     lower.includes('que prova') || lower.includes('como voce') || lower.includes('quem e voce') ||
     lower.includes('como acha') || lower.includes('explica') || lower.includes('me explica') ||
-    lower.includes('funciona mesmo') || lower.includes('da certo') ||
-    // Espanhol
-    lower.includes('que es') || lower.includes('quien es') || lower.includes('es seguro') ||
-    lower.includes('es confiable') || lower.includes('como asi') || lower.includes('cual prueba') ||
-    lower.includes('como haces') || lower.includes('quien eres') || lower.includes('funciona de verdad') ||
-    // Inglês
-    lower.includes('how does it work') || lower.includes('how does this work') || lower.includes('how it works') ||
-    lower.includes('how this works') || lower.includes('what is this') || lower.includes('who are you') ||
-    lower.includes('is it safe') || lower.includes('is this safe') || lower.includes('is it real') ||
-    lower.includes('is this real') || lower.includes('what proof') || lower.includes('how do you') ||
-    lower.includes('does it work') || lower.includes('is it legit') || lower.includes('tell me more') ||
-    lower.includes('explain')
+    lower.includes('funciona mesmo') || lower.includes('da certo') || lower.includes('golpe') ||
+    lower.includes('quanto custa') || lower.includes('valor') || lower.includes('paga') ||
+    lower.includes('preco') || lower.includes('preço') || lower.includes('descobre') ||
+    lower.includes('fake') || lower.includes('mentira') || lower.includes('?')
   );
 
-  if (isDoubt) {
-    return { type: 'DOUBT', reply: doubtReply };
-  }
-
-  // Se OpenAI estiver configurada, podemos ter ainda mais precisão semântica
-  if (apiKey) {
+  // Se OpenAI estiver configurada, gera resposta precisa e persuasiva
+  if (apiKey && isDoubt) {
     try {
       const res = await axios.post(
         'https://api.openai.com/v1/chat/completions',
@@ -82,20 +181,25 @@ async function classifyWelcomeReply(userMessage, language = 'pt') {
           messages: [
             {
               role: 'system',
-              content: `Classify lead reply after welcome message:
-- DOUBT: Customer asks how it works, who is the company, or if it is safe.
-- RANDOM: Short or unrelated greeting with no phone number.`
+              content: `Você é a atendente de suporte oficial e consultora do sistema de verificação sigilosa de conversas.
+O cliente já recebeu o convite inicial para enviar o número mas tem a seguinte dúvida ou objeção:
+"${userMessage}"
+Tire a dúvida com simpatia e segurança em 1 a 2 parágrafos curtos, garanta sigilo total e finalize pedindo para ele enviar o número da pessoa com DDD para você puxar a prova.`
             },
             { role: 'user', content: userMessage }
           ],
-          max_tokens: 10,
-          temperature: 0.1
+          max_tokens: 150,
+          temperature: 0.7
         },
-        { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 4000 }
+        { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 5000 }
       );
-      const decision = res.data.choices[0].message.content.toUpperCase();
-      if (decision.includes('DOUBT')) return { type: 'DOUBT', reply: doubtReply };
+      const aiReply = res.data?.choices?.[0]?.message?.content?.trim();
+      if (aiReply) return { type: 'DOUBT', reply: aiReply };
     } catch (e) {}
+  }
+
+  if (isDoubt) {
+    return { type: 'DOUBT', reply: doubtReply };
   }
 
   // Padrão: resposta aleatória / confirmação sem número
@@ -361,5 +465,6 @@ function localClassifier(text, currentStageInfo = {}, language = 'pt') {
 module.exports = {
   classifyAndReply,
   classifyWelcomeReply,
+  handleInitialContact,
   localClassifier
 };
