@@ -65,6 +65,12 @@ async function syncUazapiInstancesNow() {
   pollCycleCount++;
 
   try {
+    const settings = db.getSettings();
+    if (settings.uazapiEnabled === false) {
+      isPolling = false;
+      return;
+    }
+
     let instances = db.getInstances();
 
     // A cada ~20 segundos (6 ciclos) ou se não houver instâncias conectadas locais, sincroniza com uazapi

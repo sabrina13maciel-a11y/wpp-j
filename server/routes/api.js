@@ -388,6 +388,7 @@ async function syncChatsFromUazapi(inst) {
 async function autoRestoreUazapiInstances(req = null) {
   try {
     const settings = db.getSettings();
+    if (settings.uazapiEnabled === false) return db.getInstances();
     const serverUrl = process.env.UAZAPI_SERVER_URL || settings?.uazapi?.serverUrl || DEFAULT_UAZAPI_SERVER;
     const adminToken = process.env.UAZAPI_ADMIN_TOKEN || settings?.uazapi?.adminToken || settings?.uazapiAdminToken || DEFAULT_UAZAPI_ADMIN_TOKEN;
 

@@ -13,22 +13,5 @@
     "totalSent": 0,
     "totalReceived": 0,
     "createdAt": "2026-09-14T19:11:43.498Z"
-  },
-  {
-    "id": "uaz_re9e832d34a43e1",
-    "name": "01",
-    "tipo": "uazapi",
-    "url_servidor": "https://whatsblin.uazapi.com",
-    "instance_id": "re9e832d34a43e1",
-    "instance_token": "6fffac90656736f502c574ef:d21a3b2a7e3fcbdf41ca56f9e3dfcbe9:4a370d24e2c8ac548efeaaad0721bbeda7c6ff46ef964553527a54b47e2c8b4d24c182a4",
-    "phoneNumber": "557193768941",
-    "numero_conectado": "557193768941",
-    "status": "connected",
-    "assignedFlowId": "fluxo-espiao-foto",
-    "totalSent": 0,
-    "totalReceived": 0,
-    "criado_em": "2026-09-14 16:24:54.865Z",
-    "createdAt": "2026-09-14 16:24:54.865Z",
-    "lastSyncedAt": "2026-09-16T00:22:53.186Z"
   }
 ]

@@ -20,6 +20,7 @@
     "displayPhoneNumber": "+1 555-473-2635",
     "businessName": "Estefani Santos Ostroski LTDA"
   },
+  "uazapiEnabled": false,
   "uazapiServerUrl": "https://whatsblin.uazapi.com",
   "uazapiAdminToken": "Wx0bdo99r3VtcDwC8ulQezVLNDY7rcFOzSWgyS7Q9vjWwKKMJp",
   "uazapi": {

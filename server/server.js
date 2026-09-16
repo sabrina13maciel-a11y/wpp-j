@@ -132,20 +132,20 @@ app.listen(PORT, () => {
   console.log(`⚡ API Leona (Público): http://localhost:${PORT}/api/generate-proof`);
   console.log('====================================================');
 
-  // Auto-restaura conexão do WhatsApp com a uazapi no boot
-  if (typeof apiRoutes.autoRestoreUazapiInstances === 'function') {
+  // Auto-restaura conexão do WhatsApp com a uazapi no boot apenas se estiver habilitado
+  const currentSettings = db.getSettings();
+  if (currentSettings.uazapiEnabled !== false && typeof apiRoutes.autoRestoreUazapiInstances === 'function') {
     apiRoutes.autoRestoreUazapiInstances().then(instances => {
       const connected = (instances || []).find(i => i.status === 'connected');
       if (connected) {
         console.log(`[Boot] ✓ Conexão WhatsApp preservada e ativa: ${connected.name} (${connected.numero_conectado || connected.id})`);
       }
-      // Inicia sincronizador contínuo em segundo plano (a cada 3.5s)
       startUazapiMessageSyncWorker(3500);
     }).catch(e => {
       console.warn('[Boot] Aviso ao restaurar conexão:', e.message);
       startUazapiMessageSyncWorker(3500);
     });
   } else {
-    startUazapiMessageSyncWorker(3500);
+    console.log('[Boot] 📱 Conexão Uazapi desativada. Operando exclusivamente com Meta WhatsApp Cloud API.');
   }
 });
